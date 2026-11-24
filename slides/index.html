@@ -146,13 +146,24 @@ document.addEventListener('mousemove', showBar); document.addEventListener('touc
 const load = document.getElementById('load'), startBtn = document.getElementById('start');
 function setPct(p) { const e = document.getElementById('pct'); if (e) e.textContent = Math.floor(p * 100); document.getElementById('fill').style.width = (p * 100) + '%'; }
 function ready() { setPct(1); document.getElementById('loadmsg').textContent = '준비됐어요!'; startBtn.hidden = false; startBtn.focus(); }
+async function getAll() {               // 끊기면 받은 데까지 이어서 다시 받는다 (최대 5번)
+  const parts = []; let got = 0, total = 0;
+  for (let tries = 0; tries < 5; tries++) {
+    try {
+      const r = await fetch('slides.mp4', got ? { headers: { Range: 'bytes=' + got + '-' } } : {});
+      if (!r.ok) throw 0;
+      if (!total) total = +r.headers.get('content-length') || 0;
+      if (got && r.status !== 206) { parts.length = 0; got = 0; }
+      const rd = r.body.getReader();
+      for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; if (total) setPct(got / total); }
+      if (!total || got >= total) return new Blob(parts, { type: 'video/mp4' });
+    } catch (e) { if (location.protocol === 'file:') break; await new Promise(r => setTimeout(r, 1500)); }
+  }
+  return null;
+}
 async function preload() {
-  try {
-    const r = await fetch('slides.mp4'); if (!r.ok) throw 0;
-    const total = +r.headers.get('content-length') || 0, rd = r.body.getReader(), parts = []; let got = 0;
-    for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; if (total) setPct(got / total); }
-    v.src = URL.createObjectURL(new Blob(parts, { type: 'video/mp4' }));
-  } catch (e) { v.src = 'slides.mp4'; }      // 파일로 열었을 때(file://)는 바로 연결
+  const b = await getAll();
+  v.src = b ? URL.createObjectURL(b) : 'slides.mp4';     // 파일로 열었을 때(file://)는 바로 연결
   v.addEventListener('canplaythrough', ready, { once: true });
   v.load();
 }
