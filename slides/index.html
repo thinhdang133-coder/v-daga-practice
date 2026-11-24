@@ -192,10 +192,11 @@ const load = document.getElementById('load'), startBtn = document.getElementById
 let got = 0;
 function progress() {
   const p = got / N;
-  document.getElementById('fill').style.width = (p * 100) + '%';
-  document.getElementById('loadsub').textContent = '받은 슬라이드 ' + got + ' / ' + N;
-  document.getElementById('dl').textContent = got < N ? '받는 중 ' + got + '/' + N : '모두 받음';
-  if (got === N) document.getElementById('loadmsg').textContent = '모두 준비됐어요!';
+  const $ = id => document.getElementById(id) || {};   // 시작 화면은 없어진 뒤에도 계속 받는다
+  if ($('fill').style) $('fill').style.width = (p * 100) + '%';
+  $('loadsub').textContent = '받은 슬라이드 ' + got + ' / ' + N;
+  $('dl').textContent = got < N ? '받는 중 ' + got + '/' + N : '모두 받음';
+  if (got === N) $('loadmsg').textContent = '모두 준비됐어요!';
 }
 async function fetchSeg(n) {
   for (let t = 0; t < 4; t++) {
@@ -213,12 +214,12 @@ async function background() {
     return null;
   };
   async function worker() {
-    for (;;) { const n = pick(); if (n === null) return; order.push(n); await fetchSeg(n); got++; progress(); if (n === 1) ready(); }
+    for (;;) { const n = pick(); if (n === null) return; order.push(n); await fetchSeg(n); got++; try { progress(); if (n === 1) ready(); } catch (e) {} }
   }
   await Promise.all([worker(), worker(), worker()]);
 }
 let started = false;
-function ready() { startBtn.disabled = false; document.getElementById('loadmsg').textContent = '시작할 수 있어요!'; startBtn.focus(); }
+function ready() { if (!document.getElementById('load')) return; startBtn.disabled = false; document.getElementById('loadmsg').textContent = '시작할 수 있어요!'; startBtn.focus(); }
 startBtn.onclick = async () => { if (started) return; started = true; load.remove(); await playTo(MAIN[0], 0, 0); showBar(); };
 progress();
 background().then(() => { if (startBtn.disabled) ready(); });
