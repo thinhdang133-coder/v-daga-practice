@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V-다가 수업 슬라이드</title>
+<style>
+:root{--bg:#e9edf2;--bar:rgba(255,255,255,.94);--ink:#1f2937;--sub:#4b5563;--line:#cbd5e1;--accent:#2563eb}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;overflow:hidden}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#stage{position:relative;width:min(100vw,calc(100dvh*16/9));aspect-ratio:16/9;background:#fff;cursor:pointer;touch-action:manipulation;user-select:none}
+#v{position:absolute;inset:0;width:100%;height:100%;display:block;transition:opacity .15s ease}
+#v.dim{opacity:0}
+.hot{position:absolute;border:0;background:transparent;border-radius:12px;cursor:pointer;padding:0}
+.hot:hover,.hot:focus-visible{outline:3px solid var(--accent);outline-offset:2px;background:rgba(37,99,235,.06)}
+#clip{position:absolute;display:none;background:#000;border-radius:4px}
+#bar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;background:var(--bar);border:1px solid var(--line);border-radius:14px;padding:6px 8px;box-shadow:0 6px 20px rgba(15,23,42,.12);transition:opacity .25s ease,transform .25s ease;z-index:10}
+#bar.hide{opacity:0;pointer-events:none;transform:translate(-50%,8px)}
+#bar button,#bar select{height:44px;min-width:44px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;font:inherit;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 10px}
+#bar button:hover,#bar select:hover{border-color:var(--accent)}
+#bar button:focus-visible,#bar select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#bar svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#count{min-width:74px;text-align:center;font-variant-numeric:tabular-nums;font-size:16px;color:var(--sub)}
+#load{position:fixed;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;background:var(--bg);z-index:20;font-size:18px}
+#load .track{width:min(360px,70vw);height:10px;border-radius:6px;background:#fff;border:1px solid var(--line);overflow:hidden}
+#load .fill{height:100%;width:0;background:var(--accent);transition:width .2s}
+#load button{height:48px;padding:0 22px;border-radius:12px;border:0;background:var(--accent);color:#fff;font:inherit;font-size:18px;cursor:pointer}
+#load small{color:var(--sub);font-size:14px;text-align:center;line-height:1.6;padding:0 16px}
+@media (prefers-reduced-motion:reduce){#v,#bar{transition:none}}
+</style>
+</head>
+<body>
+<div id="load">
+  <div id="loadmsg">슬라이드를 불러오는 중… <span id="pct">0</span>%</div>
+  <div class="track"><div class="fill" id="fill"></div></div>
+  <button id="start" hidden>수업 시작</button>
+  <small>클릭 · → · Space · PageDown: 다음 &nbsp;/&nbsp; ← · PageUp: 이전 &nbsp;/&nbsp; F: 전체 화면<br>번호를 누르고 Enter: 그 슬라이드로 이동</small>
+</div>
+<div id="wrap"><div id="stage" aria-label="슬라이드">
+  <video id="v" preload="auto" muted playsinline></video>
+  <video id="clip" src="clip.mp4" controls preload="auto" playsinline></video>
+</div></div>
+<div id="bar" role="toolbar" aria-label="슬라이드 조작">
+  <button id="prev" aria-label="이전"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <span id="count" aria-live="polite">1 / 33</span>
+  <button id="next" aria-label="다음"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+  <select id="jump" aria-label="슬라이드로 이동"></select>
+  <button id="full" aria-label="전체 화면"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+<script>
+const D = {"slides":[{"n":1,"hidden":false,"waits":[[2.442,5.28]],"links":[],"media":null},{"n":2,"hidden":false,"waits":[[5.907,8.679],[9.867,11.946],[14.223,16.731],[18.744,21.285],[22.539,30.393]],"links":[],"media":null},{"n":3,"hidden":false,"waits":[[31.614,33.825],[34.848,37.422],[38.643,43.989]],"links":[],"media":null},{"n":4,"hidden":false,"waits":[[44.55,47.124],[48.411,50.721],[51.447,54.153],[55.44,60.786]],"links":[],"media":null},{"n":5,"hidden":false,"waits":[[62.799,65.637]],"links":[],"media":null},{"n":6,"hidden":false,"waits":[[66.198,68.871],[69.135,71.742],[71.973,74.58],[74.811,77.682]],"links":[],"media":null},{"n":7,"hidden":false,"waits":[[78.177,80.817],[82.863,85.701],[86.526,89.067],[89.529,104.907]],"links":[],"media":null},{"n":8,"hidden":false,"waits":[[105.402,108.042],[109.23,111.804],[112.926,115.467],[115.896,126.291]],"links":[],"media":null},{"n":9,"hidden":false,"waits":[[126.786,129.393],[129.888,132.66],[133.584,136.389],[136.587,141.966]],"links":[],"media":null},{"n":10,"hidden":false,"waits":[[143.253,145.134],[145.563,148.302],[148.566,153.945]],"links":[],"media":null},{"n":11,"hidden":false,"waits":[[154.44,157.047],[157.542,160.314],[161.238,164.01],[164.241,169.62]],"links":[],"media":null},{"n":12,"hidden":false,"waits":[[170.115,172.722],[174.867,176.682],[177.144,179.916],[180.84,183.546],[183.843,189.189]],"links":[],"media":null},{"n":13,"hidden":false,"waits":[[189.717,192.357],[192.786,195.525],[195.789,201.168]],"links":[],"media":null},{"n":14,"hidden":false,"waits":[[201.663,204.303],[205.062,207.867],[208.032,210.87],[211.068,213.675],[214.071,221.958]],"links":[],"media":null},{"n":15,"hidden":false,"waits":[[223.278,225.06],[228.657,231.264],[231.66,234.168],[238.161,240.768],[241.164,244.035]],"links":[],"media":null},{"n":16,"hidden":false,"waits":[[245.025,247.5],[247.5,250.338],[250.602,253.407],[253.638,256.179],[256.641,262.02]],"links":[],"media":null},{"n":17,"hidden":false,"waits":[[262.548,265.221],[265.617,268.29],[268.752,271.227],[271.623,274.23],[274.626,277.233],[277.629,280.302],[280.5,283.239],[283.635,286.185],[286.835,289.212],[290.004,302.874]],"links":[],"media":null},{"n":18,"hidden":false,"waits":[[303.402,306.108],[306.405,308.946],[310.101,327.954]],"links":[],"media":null},{"n":19,"hidden":false,"waits":[[328.482,331.122],[331.782,334.356],[334.983,337.623],[337.854,343.2]],"links":[],"media":null},{"n":20,"hidden":false,"waits":[[343.893,346.5],[346.764,349.338],[349.701,352.407],[352.671,355.212],[355.608,358.479]],"links":[],"media":null},{"n":21,"hidden":false,"waits":[[359.7,361.779],[362.043,364.617],[364.98,367.686],[367.95,370.524],[370.887,373.758]],"links":[],"media":null},{"n":22,"hidden":false,"waits":[[374.319,376.893],[377.355,379.896],[380.325,382.866],[383.262,385.803],[386.232,388.773],[389.202,391.776],[392.172,404.844]],"links":[],"media":null},{"n":23,"hidden":false,"waits":[[406.164,408.276]],"links":[{"box":[4.896,31.296,16.771,24.259],"to":34,"label":"사전단어버튼_0"},{"box":[23.229,31.296,16.771,24.259],"to":35,"label":"사전단어버튼_1"},{"box":[41.667,31.296,16.771,24.259],"to":36,"label":"사전단어버튼_2"},{"box":[60.0,31.296,16.771,24.259],"to":37,"label":"사전단어버튼_3"},{"box":[78.333,31.296,16.771,24.259],"to":38,"label":"사전단어버튼_4"},{"box":[4.896,59.074,16.771,24.259],"to":39,"label":"사전단어버튼_5"},{"box":[23.229,59.074,16.771,24.259],"to":39,"label":"사전단어버튼_6"},{"box":[41.667,59.074,16.771,24.259],"to":40,"label":"사전단어버튼_7"},{"box":[60.0,59.074,16.771,24.259],"to":41,"label":"사전단어버튼_8"},{"box":[78.333,59.074,16.771,24.259],"to":34,"label":"사전단어버튼_9"}],"media":null},{"n":24,"hidden":false,"waits":[[409.101,411.741]],"links":[],"media":[11.042,17.407,78.021,77.963]},{"n":25,"hidden":false,"waits":[[412.269,414.876],[415.272,417.813],[418.176,420.75],[421.08,423.588],[423.984,426.558],[426.888,429.429],[429.792,432.663]],"links":[],"media":null},{"n":26,"hidden":false,"waits":[[433.158,435.798],[436.986,444.807]],"links":[],"media":null},{"n":27,"hidden":false,"waits":[[445.632,448.404],[450.219,452.958],[453.354,461.274]],"links":[],"media":null},{"n":28,"hidden":false,"waits":[[461.703,464.409],[466.653,469.491],[469.92,477.807]],"links":[],"media":null},{"n":29,"hidden":false,"waits":[[478.269,481.173],[483.087,485.859],[486.288,494.208]],"links":[],"media":null},{"n":30,"hidden":false,"waits":[[494.637,497.574],[499.983,502.458],[502.887,510.708]],"links":[],"media":null},{"n":31,"hidden":false,"waits":[[511.83,513.909],[514.305,516.879],[517.242,519.816],[520.212,522.753],[523.215,528.561]],"links":[],"media":null},{"n":32,"hidden":false,"waits":[[529.617,531.861],[535.557,538.263],[538.659,541.53]],"links":[],"media":null},{"n":33,"hidden":false,"waits":[[543.378,546.216]],"links":[],"media":null},{"n":34,"hidden":true,"waits":[[548.559,551.133],[551.562,559.416]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":35,"hidden":true,"waits":[[561.792,564.366],[564.828,572.682]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":36,"hidden":true,"waits":[[574.464,577.005],[577.5,585.849]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":37,"hidden":true,"waits":[[587.928,590.667],[591.129,598.983]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":38,"hidden":true,"waits":[[600.402,603.273],[603.735,611.655]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":39,"hidden":true,"waits":[[613.734,616.308],[616.737,624.591]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":40,"hidden":true,"waits":[[625.68,628.221],[628.683,636.537]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":41,"hidden":true,"waits":[[637.956,640.629],[641.124,648.945]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null}]};
+const S = {}; D.slides.forEach(s => S[s.n] = s);
+const MAIN = D.slides.filter(s => !s.hidden).map(s => s.n);
+const v = document.getElementById('v'), clip = document.getElementById('clip'), stage = document.getElementById('stage');
+let cur = MAIN[0], step = 0, target = null, returnTo = null, typed = '';
+
+const hold = (n, k) => S[n].waits[k][0] + 0.35;            // 멈춰 보여 줄 시각
+const resume = (n, k) => Math.max(0, S[n].waits[k][1] - 0.12);  // 다음 장면이 시작되는 곳
+const entry = n => n === 1 ? 0 : S[n - 1].waits[S[n - 1].waits.length - 1][1] + 0.62; // 화면 전환 뒤
+
+function tick() {
+  if (target === null) return;
+  if (v.currentTime >= target.t - 0.02 || v.ended) { v.pause(); v.currentTime = target.t; target = null; render(); return; }
+  requestAnimationFrame(tick);
+}
+function playTo(from, n, k) {
+  cur = n; step = k; target = { t: hold(n, k) };
+  v.currentTime = from; v.play().catch(() => {}); render(); requestAnimationFrame(tick);
+}
+function jumpTo(n, k, play) {           // 다른 곳으로 바로 이동 (부드럽게 사라졌다 나타남)
+  v.classList.add('dim'); target = null; v.pause();
+  setTimeout(() => {
+    if (play) { playTo(entry(n), n, 0); setTimeout(() => v.classList.remove('dim'), 60); return; }
+    cur = n; step = k; v.currentTime = hold(n, k);
+    v.addEventListener('seeked', () => v.classList.remove('dim'), { once: true }); render();
+  }, 150);
+}
+function next() {
+  if (target) { v.pause(); v.currentTime = target.t; target = null; render(); return; }   // 재생 중이면 끝 장면으로
+  const w = S[cur].waits;
+  if (step < w.length - 1) return playTo(resume(cur, step), cur, step + 1);
+  if (S[cur].hidden) return back();
+  const i = MAIN.indexOf(cur);
+  if (i < MAIN.length - 1) playTo(resume(cur, step), MAIN[i + 1], 0);
+}
+function prev() {
+  if (target) { target = null; v.pause(); }
+  if (step > 0) return jumpTo(cur, step - 1);
+  if (S[cur].hidden) return back();
+  const i = MAIN.indexOf(cur);
+  if (i > 0) { const p = MAIN[i - 1]; jumpTo(p, S[p].waits.length - 1); }
+}
+function back() { const r = returnTo || [23, 0]; returnTo = null; jumpTo(r[0], r[1]); }
+function go(n) { if (!S[n]) return; returnTo = null; jumpTo(n, 0, true); }
+
+function render() {
+  stage.querySelectorAll('.hot').forEach(b => b.remove());
+  const s = S[cur], idle = target === null;
+  const main = MAIN.indexOf(cur);
+  document.getElementById('count').textContent = s.hidden ? '단어' : (main + 1) + ' / ' + MAIN.length;
+  document.getElementById('jump').value = s.hidden ? '' : String(cur);
+  if (s.media && idle) {
+    Object.assign(clip.style, { left: s.media[0] + '%', top: s.media[1] + '%', width: s.media[2] + '%', height: s.media[3] + '%', display: 'block' });
+  } else { clip.pause(); clip.style.display = 'none'; }
+  if (!idle) return;
+  s.links.forEach(L => {
+    const b = document.createElement('button');
+    b.className = 'hot'; b.setAttribute('aria-label', L.to === 'back' ? '수업으로 돌아가기' : '단어 그림 보기');
+    Object.assign(b.style, { left: L.box[0] + '%', top: L.box[1] + '%', width: L.box[2] + '%', height: L.box[3] + '%' });
+    b.onclick = e => { e.stopPropagation(); if (L.to === 'back') back(); else { returnTo = [cur, step]; jumpTo(L.to, 0, true); } };
+    stage.appendChild(b);
+  });
+}
+
+stage.addEventListener('click', e => { if (e.target === clip) return; next(); });
+clip.addEventListener('click', e => e.stopPropagation());
+document.getElementById('next').onclick = e => { e.stopPropagation(); next(); };
+document.getElementById('prev').onclick = e => { e.stopPropagation(); prev(); };
+document.getElementById('full').onclick = () => toggleFull();
+const jump = document.getElementById('jump');
+MAIN.forEach((n, i) => { const o = document.createElement('option'); o.value = n; o.textContent = (i + 1) + '번 슬라이드'; jump.appendChild(o); });
+jump.onchange = () => { go(+jump.value); jump.blur(); };
+function toggleFull() { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
+
+document.addEventListener('keydown', e => {
+  if (e.target === jump) return;
+  if (document.activeElement === clip && [' ', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  const k = e.key;
+  if (/^[0-9]$/.test(k)) { typed += k; return; }
+  if (k === 'Enter' && typed) { const i = +typed - 1; typed = ''; if (MAIN[i]) go(MAIN[i]); e.preventDefault(); return; }
+  typed = '';
+  if (['ArrowRight', 'ArrowDown', ' ', 'PageDown', 'Enter', 'n', 'N'].includes(k)) { e.preventDefault(); next(); }
+  else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace', 'p', 'P'].includes(k)) { e.preventDefault(); prev(); }
+  else if (k === 'f' || k === 'F') toggleFull();
+  else if (k === 'Home') go(MAIN[0]);
+  else if (k === 'End') go(MAIN[MAIN.length - 1]);
+  showBar();
+});
+
+const bar = document.getElementById('bar'); let hideT;
+function showBar() { bar.classList.remove('hide'); clearTimeout(hideT); hideT = setTimeout(() => { if (!bar.matches(':hover') && !bar.contains(document.activeElement)) bar.classList.add('hide'); }, 2500); }
+document.addEventListener('mousemove', showBar); document.addEventListener('touchstart', showBar, { passive: true });
+
+// 미리 다 받아 두기 (수업 중 끊기지 않게): 영상 전체를 받아 메모리에 넣는다
+const load = document.getElementById('load'), startBtn = document.getElementById('start');
+function setPct(p) { const e = document.getElementById('pct'); if (e) e.textContent = Math.floor(p * 100); document.getElementById('fill').style.width = (p * 100) + '%'; }
+function ready() { setPct(1); document.getElementById('loadmsg').textContent = '준비됐어요!'; startBtn.hidden = false; startBtn.focus(); }
+async function preload() {
+  try {
+    const r = await fetch('slides.mp4'); if (!r.ok) throw 0;
+    const total = +r.headers.get('content-length') || 0, rd = r.body.getReader(), parts = []; let got = 0;
+    for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; if (total) setPct(got / total); }
+    v.src = URL.createObjectURL(new Blob(parts, { type: 'video/mp4' }));
+  } catch (e) { v.src = 'slides.mp4'; }      // 파일로 열었을 때(file://)는 바로 연결
+  v.addEventListener('canplaythrough', ready, { once: true });
+  v.load();
+}
+preload();
+startBtn.onclick = () => { load.remove(); playTo(0, MAIN[0], 0); showBar(); };
+</script>
+</body>
+</html>
