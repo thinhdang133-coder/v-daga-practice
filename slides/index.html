@@ -9,12 +9,13 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;overflow:hidden}
 #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
-#stage{position:relative;width:min(100vw,calc(100dvh*16/9));aspect-ratio:16/9;background:#fff;cursor:pointer;touch-action:manipulation;user-select:none}
-#v{position:absolute;inset:0;width:100%;height:100%;display:block;transition:opacity .15s ease}
-#v.dim{opacity:0}
-.hot{position:absolute;border:0;background:transparent;border-radius:12px;cursor:pointer;padding:0}
+#stage{position:relative;width:min(100vw,calc(100dvh*16/9));aspect-ratio:16/9;background:#fff;cursor:pointer;touch-action:manipulation;user-select:none;overflow:hidden}
+.v{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .15s ease}
+.v.on{opacity:1}
+#stage.dim .v.on{opacity:0}
+.hot{position:absolute;border:0;background:transparent;border-radius:12px;cursor:pointer;padding:0;z-index:3}
 .hot:hover,.hot:focus-visible{outline:3px solid var(--accent);outline-offset:2px;background:rgba(37,99,235,.06)}
-#clip{position:absolute;display:none;background:#000;border-radius:4px}
+#clip{position:absolute;display:none;background:#000;border-radius:4px;z-index:3}
 #bar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;background:var(--bar);border:1px solid var(--line);border-radius:14px;padding:6px 8px;box-shadow:0 6px 20px rgba(15,23,42,.12);transition:opacity .25s ease,transform .25s ease;z-index:10}
 #bar.hide{opacity:0;pointer-events:none;transform:translate(-50%,8px)}
 #bar button,#bar select{height:44px;min-width:44px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;font:inherit;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 10px}
@@ -22,70 +23,113 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 #bar button:focus-visible,#bar select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #bar svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #count{min-width:74px;text-align:center;font-variant-numeric:tabular-nums;font-size:16px;color:var(--sub)}
+#dl{font-size:13px;color:var(--sub);min-width:86px;text-align:center;font-variant-numeric:tabular-nums}
 #load{position:fixed;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;background:var(--bg);z-index:20;font-size:18px}
 #load .track{width:min(360px,70vw);height:10px;border-radius:6px;background:#fff;border:1px solid var(--line);overflow:hidden}
 #load .fill{height:100%;width:0;background:var(--accent);transition:width .2s}
 #load button{height:48px;padding:0 22px;border-radius:12px;border:0;background:var(--accent);color:#fff;font:inherit;font-size:18px;cursor:pointer}
+#load button:disabled{background:#94a3b8;cursor:default}
 #load small{color:var(--sub);font-size:14px;text-align:center;line-height:1.6;padding:0 16px}
-@media (prefers-reduced-motion:reduce){#v,#bar{transition:none}}
+@media (prefers-reduced-motion:reduce){.v,#bar{transition:none}}
 </style>
 </head>
 <body>
 <div id="load">
-  <div id="loadmsg">슬라이드를 불러오는 중… <span id="pct">0</span>%</div>
+  <div id="loadmsg">슬라이드를 준비하는 중…</div>
   <div class="track"><div class="fill" id="fill"></div></div>
-  <button id="start" hidden>수업 시작</button>
-  <small>클릭 · → · Space · PageDown: 다음 &nbsp;/&nbsp; ← · PageUp: 이전 &nbsp;/&nbsp; F: 전체 화면<br>번호를 누르고 Enter: 그 슬라이드로 이동</small>
+  <div id="loadsub" style="font-size:15px;color:#4b5563">받은 슬라이드 0 / 0</div>
+  <button id="start" disabled>수업 시작</button>
+  <small>첫 슬라이드가 준비되면 바로 시작할 수 있어요. 나머지는 수업하는 동안 뒤에서 받아요.<br>
+  클릭 · → · Space · PageDown: 다음 &nbsp;/&nbsp; ← · PageUp: 이전 &nbsp;/&nbsp; F: 전체 화면 &nbsp;/&nbsp; 번호 + Enter: 그 슬라이드로</small>
 </div>
 <div id="wrap"><div id="stage" aria-label="슬라이드">
-  <video id="v" preload="auto" muted playsinline></video>
-  <video id="clip" src="clip.mp4" controls preload="auto" playsinline></video>
+  <video class="v on" id="va" muted playsinline preload="auto"></video>
+  <video class="v" id="vb" muted playsinline preload="auto"></video>
+  <video id="clip" src="clip.mp4" controls preload="none" playsinline></video>
 </div></div>
 <div id="bar" role="toolbar" aria-label="슬라이드 조작">
   <button id="prev" aria-label="이전"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
   <span id="count" aria-live="polite">1 / 33</span>
   <button id="next" aria-label="다음"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
   <select id="jump" aria-label="슬라이드로 이동"></select>
+  <span id="dl" title="미리 받은 슬라이드"></span>
   <button id="full" aria-label="전체 화면"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 </div>
 <script>
-const D = {"slides":[{"n":1,"hidden":false,"waits":[[2.442,5.28]],"links":[],"media":null},{"n":2,"hidden":false,"waits":[[5.907,8.679],[9.867,11.946],[14.223,16.731],[18.744,21.285],[22.539,30.393]],"links":[],"media":null},{"n":3,"hidden":false,"waits":[[31.614,33.825],[34.848,37.422],[38.643,43.989]],"links":[],"media":null},{"n":4,"hidden":false,"waits":[[44.55,47.124],[48.411,50.721],[51.447,54.153],[55.44,60.786]],"links":[],"media":null},{"n":5,"hidden":false,"waits":[[62.799,65.637]],"links":[],"media":null},{"n":6,"hidden":false,"waits":[[66.198,68.871],[69.135,71.742],[71.973,74.58],[74.811,77.682]],"links":[],"media":null},{"n":7,"hidden":false,"waits":[[78.177,80.817],[82.863,85.701],[86.526,89.067],[89.529,104.907]],"links":[],"media":null},{"n":8,"hidden":false,"waits":[[105.402,108.042],[109.23,111.804],[112.926,115.467],[115.896,126.291]],"links":[],"media":null},{"n":9,"hidden":false,"waits":[[126.786,129.393],[129.888,132.66],[133.584,136.389],[136.587,141.966]],"links":[],"media":null},{"n":10,"hidden":false,"waits":[[143.253,145.134],[145.563,148.302],[148.566,153.945]],"links":[],"media":null},{"n":11,"hidden":false,"waits":[[154.44,157.047],[157.542,160.314],[161.238,164.01],[164.241,169.62]],"links":[],"media":null},{"n":12,"hidden":false,"waits":[[170.115,172.722],[174.867,176.682],[177.144,179.916],[180.84,183.546],[183.843,189.189]],"links":[],"media":null},{"n":13,"hidden":false,"waits":[[189.717,192.357],[192.786,195.525],[195.789,201.168]],"links":[],"media":null},{"n":14,"hidden":false,"waits":[[201.663,204.303],[205.062,207.867],[208.032,210.87],[211.068,213.675],[214.071,221.958]],"links":[],"media":null},{"n":15,"hidden":false,"waits":[[223.278,225.06],[228.657,231.264],[231.66,234.168],[238.161,240.768],[241.164,244.035]],"links":[],"media":null},{"n":16,"hidden":false,"waits":[[245.025,247.203],[247.83,250.503],[251.163,253.803],[254.925,264.891]],"links":[],"media":null},{"n":17,"hidden":false,"waits":[[265.452,268.125],[268.521,271.194],[271.722,274.131],[274.527,277.134],[277.53,280.137],[280.533,283.206],[283.404,286.143],[286.539,289.542],[289.542,292.149],[292.908,305.778]],"links":[],"media":null},{"n":18,"hidden":false,"waits":[[306.372,309.078],[309.309,311.85],[313.005,330.858]],"links":[],"media":null},{"n":19,"hidden":false,"waits":[[331.386,334.026],[334.686,337.26],[337.887,340.527],[340.758,346.104]],"links":[],"media":null},{"n":20,"hidden":false,"waits":[[346.863,349.404],[349.668,352.242],[352.605,355.311],[355.575,358.116],[358.512,361.383]],"links":[],"media":null},{"n":21,"hidden":false,"waits":[[362.67,364.683],[364.947,367.521],[367.884,370.59],[370.854,373.428],[373.791,376.662]],"links":[],"media":null},{"n":22,"hidden":false,"waits":[[377.223,379.797],[380.259,382.8],[383.229,385.77],[386.166,388.707],[389.136,391.677],[392.106,394.68],[395.076,407.748]],"links":[],"media":null},{"n":23,"hidden":false,"waits":[[408.276,411.18]],"links":[{"box":[4.896,31.296,16.771,24.259],"to":34,"label":"사전단어버튼_0"},{"box":[23.229,31.296,16.771,24.259],"to":35,"label":"사전단어버튼_1"},{"box":[41.667,31.296,16.771,24.259],"to":36,"label":"사전단어버튼_2"},{"box":[60.0,31.296,16.771,24.259],"to":37,"label":"사전단어버튼_3"},{"box":[78.333,31.296,16.771,24.259],"to":38,"label":"사전단어버튼_4"},{"box":[4.896,59.074,16.771,24.259],"to":39,"label":"사전단어버튼_5"},{"box":[23.229,59.074,16.771,24.259],"to":39,"label":"사전단어버튼_6"},{"box":[41.667,59.074,16.771,24.259],"to":40,"label":"사전단어버튼_7"},{"box":[60.0,59.074,16.771,24.259],"to":41,"label":"사전단어버튼_8"},{"box":[78.333,59.074,16.771,24.259],"to":34,"label":"사전단어버튼_9"}],"media":null},{"n":24,"hidden":false,"waits":[[412.071,414.645]],"links":[],"media":[11.042,17.407,78.021,77.963]},{"n":25,"hidden":false,"waits":[[415.173,417.78],[418.176,420.717],[421.08,423.621],[423.984,426.492],[426.888,429.462],[429.792,432.333],[432.696,435.567]],"links":[],"media":null},{"n":26,"hidden":false,"waits":[[436.062,438.702],[439.89,447.711]],"links":[],"media":null},{"n":27,"hidden":false,"waits":[[448.602,451.308],[453.156,455.862],[456.258,464.178]],"links":[],"media":null},{"n":28,"hidden":false,"waits":[[464.607,467.379],[469.557,472.395],[472.824,480.711]],"links":[],"media":null},{"n":29,"hidden":false,"waits":[[481.173,484.176],[486.156,488.763],[489.192,497.112]],"links":[],"media":null},{"n":30,"hidden":false,"waits":[[497.541,500.478],[502.953,505.362],[505.791,513.612]],"links":[],"media":null},{"n":31,"hidden":false,"waits":[[514.8,516.813],[517.209,519.783],[520.146,522.72],[523.116,525.657],[526.119,531.465]],"links":[],"media":null},{"n":32,"hidden":false,"waits":[[532.587,534.765],[538.197,541.134],[541.563,544.434]],"links":[],"media":null},{"n":33,"hidden":false,"waits":[[546.282,549.12]],"links":[],"media":null},{"n":34,"hidden":true,"waits":[[551.463,554.037],[554.466,562.32]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":35,"hidden":true,"waits":[[564.696,567.27],[567.732,575.586]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":36,"hidden":true,"waits":[[577.368,579.942],[580.404,588.753]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":37,"hidden":true,"waits":[[590.832,593.571],[594.033,601.887]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":38,"hidden":true,"waits":[[603.306,606.177],[606.639,614.559]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":39,"hidden":true,"waits":[[616.605,619.179],[619.641,627.495]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":40,"hidden":true,"waits":[[628.551,631.125],[632.313,639.474]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null},{"n":41,"hidden":true,"waits":[[640.926,643.566],[644.028,651.849]],"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back","label":"수업으로 돌아가기"}],"media":null}]};
+const D = {"slides":[{"n":1,"hidden":false,"waits":[[2.442,5.28]],"skip":0.0,"links":[],"media":null},{"n":2,"hidden":false,"waits":[[0.627,3.399],[4.587,6.666],[8.943,11.451],[13.464,16.005],[17.259,25.113]],"skip":0.62,"links":[],"media":null},{"n":3,"hidden":false,"waits":[[1.221,3.432],[4.455,7.029],[8.25,13.596]],"skip":0.62,"links":[],"media":null},{"n":4,"hidden":false,"waits":[[0.561,3.135],[4.422,6.732],[7.458,10.164],[11.451,16.797]],"skip":0.62,"links":[],"media":null},{"n":5,"hidden":false,"waits":[[2.013,4.851]],"skip":0.62,"links":[],"media":null},{"n":6,"hidden":false,"waits":[[0.561,3.234],[3.498,6.105],[6.336,8.943],[9.174,12.045]],"skip":0.62,"links":[],"media":null},{"n":7,"hidden":false,"waits":[[0.495,3.135],[5.181,8.019],[8.844,11.385],[11.847,27.225]],"skip":0.62,"links":[],"media":null},{"n":8,"hidden":false,"waits":[[0.495,3.135],[4.323,6.897],[8.019,10.56],[10.989,21.384]],"skip":0.62,"links":[],"media":null},{"n":9,"hidden":false,"waits":[[0.495,3.102],[3.597,6.369],[7.293,10.098],[10.296,15.675]],"skip":0.62,"links":[],"media":null},{"n":10,"hidden":false,"waits":[[1.287,3.168],[3.597,6.336],[6.6,11.979]],"skip":0.62,"links":[],"media":null},{"n":11,"hidden":false,"waits":[[0.495,3.102],[3.597,6.369],[7.293,10.065],[10.296,15.675]],"skip":0.62,"links":[],"media":null},{"n":12,"hidden":false,"waits":[[0.495,3.102],[5.247,7.062],[7.524,10.296],[11.22,13.926],[14.223,19.569]],"skip":0.62,"links":[],"media":null},{"n":13,"hidden":false,"waits":[[0.528,3.168],[3.597,6.336],[6.6,11.979]],"skip":0.62,"links":[],"media":null},{"n":14,"hidden":false,"waits":[[0.495,3.135],[3.894,6.699],[6.864,9.702],[9.9,12.507],[12.903,20.79]],"skip":0.62,"links":[],"media":null},{"n":15,"hidden":false,"waits":[[1.32,3.102],[6.699,9.306],[9.702,12.21],[16.203,18.81],[19.206,22.077]],"skip":0.62,"links":[],"media":null},{"n":16,"hidden":false,"waits":[[0.99,3.168],[3.795,6.468],[7.128,9.768],[10.89,20.856]],"skip":0.62,"links":[],"media":null},{"n":17,"hidden":false,"waits":[[0.561,3.234],[3.63,6.303],[6.831,9.24],[9.636,12.243],[12.639,15.246],[15.642,18.315],[18.513,21.252],[21.648,24.651],[24.651,27.258],[28.017,40.887]],"skip":0.62,"links":[],"media":null},{"n":18,"hidden":false,"waits":[[0.594,3.3],[3.531,6.072],[7.227,25.08]],"skip":0.62,"links":[],"media":null},{"n":19,"hidden":false,"waits":[[0.528,3.168],[3.828,6.402],[7.029,9.669],[9.9,15.246]],"skip":0.62,"links":[],"media":null},{"n":20,"hidden":false,"waits":[[0.759,3.3],[3.564,6.138],[6.501,9.207],[9.471,12.012],[12.408,15.279]],"skip":0.62,"links":[],"media":null},{"n":21,"hidden":false,"waits":[[1.287,3.3],[3.564,6.138],[6.501,9.207],[9.471,12.045],[12.408,15.279]],"skip":0.62,"links":[],"media":null},{"n":22,"hidden":false,"waits":[[0.561,3.135],[3.597,6.138],[6.567,9.108],[9.504,12.045],[12.474,15.015],[15.444,18.018],[18.414,31.086]],"skip":0.62,"links":[],"media":null},{"n":23,"hidden":false,"waits":[[0.528,3.432]],"skip":0.62,"links":[{"box":[4.896,31.296,16.771,24.259],"to":34},{"box":[23.229,31.296,16.771,24.259],"to":35},{"box":[41.667,31.296,16.771,24.259],"to":36},{"box":[60.0,31.296,16.771,24.259],"to":37},{"box":[78.333,31.296,16.771,24.259],"to":38},{"box":[4.896,59.074,16.771,24.259],"to":39},{"box":[23.229,59.074,16.771,24.259],"to":39},{"box":[41.667,59.074,16.771,24.259],"to":40},{"box":[60.0,59.074,16.771,24.259],"to":41},{"box":[78.333,59.074,16.771,24.259],"to":34}],"media":null},{"n":24,"hidden":false,"waits":[[0.891,3.465]],"skip":0.62,"links":[],"media":[11.042,17.407,78.021,77.963]},{"n":25,"hidden":false,"waits":[[0.528,3.135],[3.531,6.072],[6.435,8.976],[9.339,11.847],[12.243,14.817],[15.147,17.688],[18.051,20.922]],"skip":0.62,"links":[],"media":null},{"n":26,"hidden":false,"waits":[[0.495,3.135],[4.323,12.144]],"skip":0.62,"links":[],"media":null},{"n":27,"hidden":false,"waits":[[0.891,3.597],[5.445,8.151],[8.547,16.467]],"skip":0.62,"links":[],"media":null},{"n":28,"hidden":false,"waits":[[0.429,3.201],[5.379,8.217],[8.646,16.533]],"skip":0.62,"links":[],"media":null},{"n":29,"hidden":false,"waits":[[0.462,3.465],[5.445,8.052],[8.481,16.401]],"skip":0.62,"links":[],"media":null},{"n":30,"hidden":false,"waits":[[0.429,3.366],[5.841,8.25],[8.679,16.5]],"skip":0.62,"links":[],"media":null},{"n":31,"hidden":false,"waits":[[1.188,3.201],[3.597,6.171],[6.534,9.108],[9.504,12.045],[12.507,17.853]],"skip":0.62,"links":[],"media":null},{"n":32,"hidden":false,"waits":[[1.122,3.3],[6.732,9.669],[10.098,12.969]],"skip":0.62,"links":[],"media":null},{"n":33,"hidden":false,"waits":[[1.848,4.686]],"skip":0.62,"links":[],"media":null},{"n":34,"hidden":true,"waits":[[2.343,4.917],[5.346,13.2]],"skip":0.62,"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back"}],"media":null},{"n":35,"hidden":true,"waits":[[2.376,4.95],[5.412,13.266]],"skip":0.62,"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back"}],"media":null},{"n":36,"hidden":true,"waits":[[1.782,4.356],[4.818,13.167]],"skip":0.62,"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back"}],"media":null},{"n":37,"hidden":true,"waits":[[2.079,4.818],[5.28,13.134]],"skip":0.62,"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back"}],"media":null},{"n":38,"hidden":true,"waits":[[1.419,4.29],[4.752,12.672]],"skip":0.62,"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back"}],"media":null},{"n":39,"hidden":true,"waits":[[2.046,4.62],[5.082,12.936]],"skip":0.62,"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back"}],"media":null},{"n":40,"hidden":true,"waits":[[1.056,3.63],[4.818,11.979]],"skip":0.62,"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back"}],"media":null},{"n":41,"hidden":true,"waits":[[1.452,4.092],[4.554,12.375]],"skip":0.62,"links":[{"box":[76.875,5.0,18.958,7.407],"to":"back"}],"media":null}]};
 const S = {}; D.slides.forEach(s => S[s.n] = s);
+const N = D.slides.length;
 const MAIN = D.slides.filter(s => !s.hidden).map(s => s.n);
-const v = document.getElementById('v'), clip = document.getElementById('clip'), stage = document.getElementById('stage');
-let cur = MAIN[0], step = 0, target = null, returnTo = null, typed = '';
+const va = document.getElementById('va'), vb = document.getElementById('vb');
+const clip = document.getElementById('clip'), stage = document.getElementById('stage');
+let act = va, cur = MAIN[0], step = 0, target = null, returnTo = null, typed = '', busy = 0;
+const pad = n => String(n).padStart(2, '0');
+const blobs = {};
+const src = n => blobs[n] || ('seg/s' + pad(n) + '.mp4');
+const other = () => act === va ? vb : va;
 
-const hold = (n, k) => S[n].waits[k][0] + 0.35;            // 멈춰 보여 줄 시각
-const resume = (n, k) => Math.max(0, S[n].waits[k][1] - 0.12);  // 다음 장면이 시작되는 곳
-const entry = n => n === 1 ? 0 : S[n - 1].waits[S[n - 1].waits.length - 1][1] + 0.62; // 화면 전환 뒤
+const hold = (n, k) => S[n].waits[k][0] + 0.35;               // 멈춰 보여 줄 곳 (슬라이드 영상 안의 시각)
+const resume = (n, k) => Math.max(0, S[n].waits[k][1] - 0.12); // 다음 장면이 시작되는 곳
 
+function loadInto(el, n) {               // 영상 요소에 슬라이드 n을 넣고 첫 그림이 준비될 때까지 기다린다
+  return new Promise(res => {
+    if (el.dataset.n == n && el.readyState >= 2) return res();
+    el.dataset.n = n; el.src = src(n);
+    const ok = () => { el.removeEventListener('error', ok); res(); };
+    el.addEventListener('loadeddata', ok, { once: true }); el.addEventListener('error', ok, { once: true });
+    el.load();
+  });
+}
+function seek(el, t) {
+  return new Promise(res => {
+    if (Math.abs(el.currentTime - t) < 0.01) return res();
+    el.addEventListener('seeked', () => res(), { once: true }); el.currentTime = t;
+  });
+}
+async function show(n, t, play) {        // 슬라이드 n의 t초를 보여 준다 (다른 슬라이드면 뒤의 영상으로 바꿔 끼운다)
+  const my = ++busy;
+  const el = act.dataset.n == n ? act : other();
+  await loadInto(el, n);
+  if (my !== busy) return false;
+  await seek(el, t);
+  if (my !== busy) return false;
+  if (play) el.play().catch(() => {}); else el.pause();
+  if (el !== act) { el.classList.add('on'); act.classList.remove('on'); act.pause(); act = el; }
+  return true;
+}
 function tick() {
   if (target === null) return;
-  if (v.currentTime >= target.t - 0.02 || v.ended) { v.pause(); v.currentTime = target.t; target = null; render(); return; }
+  if (act.dataset.n == target.n && (act.currentTime >= target.t - 0.02 || act.ended)) {
+    act.pause(); act.currentTime = target.t; target = null; render(); prepNext(); return;
+  }
   requestAnimationFrame(tick);
 }
-function playTo(from, n, k) {
-  cur = n; step = k; target = { t: hold(n, k) };
-  v.currentTime = from; v.play().catch(() => {}); render(); requestAnimationFrame(tick);
+async function playTo(n, from, k) {
+  cur = n; step = k; target = { n, t: hold(n, k) }; render();
+  if (await show(n, from, true)) requestAnimationFrame(tick);
 }
-function jumpTo(n, k, play) {           // 다른 곳으로 바로 이동 (부드럽게 사라졌다 나타남)
-  v.classList.add('dim'); target = null; v.pause();
-  setTimeout(() => {
-    if (play) { playTo(entry(n), n, 0); setTimeout(() => v.classList.remove('dim'), 60); return; }
-    cur = n; step = k; v.currentTime = hold(n, k);
-    v.addEventListener('seeked', () => v.classList.remove('dim'), { once: true }); render();
-  }, 150);
+async function jumpTo(n, k, play) {      // 바로 옮겨 가기 (살짝 사라졌다 나타남)
+  target = null; stage.classList.add('dim');
+  await new Promise(r => setTimeout(r, 150));
+  if (play) { await playTo(n, S[n].skip, 0); }
+  else { cur = n; step = k; render(); await show(n, hold(n, k), false); prepNext(); }
+  stage.classList.remove('dim');
+}
+function nextMain(n) { const i = MAIN.indexOf(n); return i >= 0 && i < MAIN.length - 1 ? MAIN[i + 1] : null; }
+function prepNext() {                     // 마지막 장면에 멈추면 다음 슬라이드를 뒤에 미리 넣어 둔다
+  if (S[cur].hidden || step < S[cur].waits.length - 1) return;
+  const m = nextMain(cur); if (m) loadInto(other(), m).then(() => { if (other().dataset.n == m) other().currentTime = 0; });
 }
 function next() {
-  if (target) { v.pause(); v.currentTime = target.t; target = null; render(); return; }   // 재생 중이면 끝 장면으로
+  if (target) { if (act.dataset.n != target.n) return; act.pause(); act.currentTime = target.t; target = null; render(); prepNext(); return; }
   const w = S[cur].waits;
-  if (step < w.length - 1) return playTo(resume(cur, step), cur, step + 1);
+  if (step < w.length - 1) return playTo(cur, resume(cur, step), step + 1);
   if (S[cur].hidden) return back();
-  const i = MAIN.indexOf(cur);
-  if (i < MAIN.length - 1) playTo(resume(cur, step), MAIN[i + 1], 0);
+  const m = nextMain(cur);
+  if (m) playTo(m, 0, 0);
 }
 function prev() {
-  if (target) { target = null; v.pause(); }
+  if (target) { target = null; act.pause(); }
   if (step > 0) return jumpTo(cur, step - 1);
   if (S[cur].hidden) return back();
   const i = MAIN.indexOf(cur);
@@ -97,12 +141,13 @@ function go(n) { if (!S[n]) return; returnTo = null; jumpTo(n, 0, true); }
 function render() {
   stage.querySelectorAll('.hot').forEach(b => b.remove());
   const s = S[cur], idle = target === null;
-  const main = MAIN.indexOf(cur);
-  document.getElementById('count').textContent = s.hidden ? '단어' : (main + 1) + ' / ' + MAIN.length;
+  const i = MAIN.indexOf(cur);
+  document.getElementById('count').textContent = s.hidden ? '단어' : (i + 1) + ' / ' + MAIN.length;
   document.getElementById('jump').value = s.hidden ? '' : String(cur);
   if (s.media && idle) {
     Object.assign(clip.style, { left: s.media[0] + '%', top: s.media[1] + '%', width: s.media[2] + '%', height: s.media[3] + '%', display: 'block' });
   } else { clip.pause(); clip.style.display = 'none'; }
+  if (cur >= 20 && clip.preload === 'none') { clip.preload = 'auto'; clip.load(); }   // 대화 영상은 가까워지면 받는다
   if (!idle) return;
   s.links.forEach(L => {
     const b = document.createElement('button');
@@ -142,33 +187,42 @@ const bar = document.getElementById('bar'); let hideT;
 function showBar() { bar.classList.remove('hide'); clearTimeout(hideT); hideT = setTimeout(() => { if (!bar.matches(':hover') && !bar.contains(document.activeElement)) bar.classList.add('hide'); }, 2500); }
 document.addEventListener('mousemove', showBar); document.addEventListener('touchstart', showBar, { passive: true });
 
-// 미리 다 받아 두기 (수업 중 끊기지 않게): 영상 전체를 받아 메모리에 넣는다
+// 뒤에서 받기: 순서대로(지금 슬라이드 근처 먼저) 받아 메모리에 넣는다. 파일로 열면(file://) 받을 필요 없음
 const load = document.getElementById('load'), startBtn = document.getElementById('start');
-function setPct(p) { const e = document.getElementById('pct'); if (e) e.textContent = Math.floor(p * 100); document.getElementById('fill').style.width = (p * 100) + '%'; }
-function ready() { setPct(1); document.getElementById('loadmsg').textContent = '준비됐어요!'; startBtn.hidden = false; startBtn.focus(); }
-async function getAll() {               // 끊기면 받은 데까지 이어서 다시 받는다 (최대 5번)
-  const parts = []; let got = 0, total = 0;
-  for (let tries = 0; tries < 5; tries++) {
-    try {
-      const r = await fetch('slides.mp4', got ? { headers: { Range: 'bytes=' + got + '-' } } : {});
-      if (!r.ok) throw 0;
-      if (!total) total = +r.headers.get('content-length') || 0;
-      if (got && r.status !== 206) { parts.length = 0; got = 0; }
-      const rd = r.body.getReader();
-      for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; if (total) setPct(got / total); }
-      if (!total || got >= total) return new Blob(parts, { type: 'video/mp4' });
-    } catch (e) { if (location.protocol === 'file:') break; await new Promise(r => setTimeout(r, 1500)); }
+let got = 0;
+function progress() {
+  const p = got / N;
+  document.getElementById('fill').style.width = (p * 100) + '%';
+  document.getElementById('loadsub').textContent = '받은 슬라이드 ' + got + ' / ' + N;
+  document.getElementById('dl').textContent = got < N ? '받는 중 ' + got + '/' + N : '모두 받음';
+  if (got === N) document.getElementById('loadmsg').textContent = '모두 준비됐어요!';
+}
+async function fetchSeg(n) {
+  for (let t = 0; t < 4; t++) {
+    try { const r = await fetch('seg/s' + pad(n) + '.mp4'); if (!r.ok) throw 0; blobs[n] = URL.createObjectURL(await r.blob()); return; }
+    catch (e) { await new Promise(r => setTimeout(r, 1000 * (t + 1))); }
   }
-  return null;
 }
-async function preload() {
-  const b = await getAll();
-  v.src = b ? URL.createObjectURL(b) : 'slides.mp4';     // 파일로 열었을 때(file://)는 바로 연결
-  v.addEventListener('canplaythrough', ready, { once: true });
-  v.load();
+async function background() {
+  if (location.protocol === 'file:') { got = N; progress(); return true; }
+  const order = [];
+  let pos = 0;
+  const pick = () => {                    // 지금 보는 슬라이드부터 앞으로 가며 아직 안 받은 것
+    const start = Math.max(1, cur);
+    for (let k = 0; k < N; k++) { const n = ((start - 1 + k) % N) + 1; if (!blobs[n] && !order.includes(n)) return n; }
+    return null;
+  };
+  async function worker() {
+    for (;;) { const n = pick(); if (n === null) return; order.push(n); await fetchSeg(n); got++; progress(); if (n === 1) ready(); }
+  }
+  await Promise.all([worker(), worker(), worker()]);
 }
-preload();
-startBtn.onclick = () => { load.remove(); playTo(0, MAIN[0], 0); showBar(); };
+let started = false;
+function ready() { startBtn.disabled = false; document.getElementById('loadmsg').textContent = '시작할 수 있어요!'; startBtn.focus(); }
+startBtn.onclick = async () => { if (started) return; started = true; load.remove(); await playTo(MAIN[0], 0, 0); showBar(); };
+progress();
+background().then(() => { if (startBtn.disabled) ready(); });
+setTimeout(() => { if (startBtn.disabled) ready(); }, 6000);   // 아주 느려도 시작은 할 수 있게 (영상은 바로 이어 받음)
 </script>
 </body>
 </html>
